@@ -75,7 +75,7 @@ task test(int k);
 	dut_conf = {vol,kal_pnc,sel_lpf,sel_hpf};
 	reset();
 	enable();
-	$display("test: sel_hpf = %b, sel_lpf = %b, kal_pnc = %d", sel_hpf, sel_lpf, kal_pnc);
+	$display("test: sel_hpf = %b, sel_lpf = %b, kal_pnc = %d, vol = %d", sel_hpf, sel_lpf, kal_pnc, vol);
 	@(posedge lrclk);
 	dut_req = ~dut_req;
 	repeat(k) push_dut_rx_data();
