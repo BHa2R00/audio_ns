@@ -19,9 +19,10 @@ module fix_audio_ns(
 `endif
 reg [5:0] cst;
 localparam
-	st_error = `gray(47),
-	st_done = `gray(46),
-	st_vol = `gray(45), st_load_vol = `gray(44),
+	st_error = `gray(48),
+	st_done = `gray(47),
+	st_vol = `gray(46), st_load_vol = `gray(45),
+	st_vol_idle = `gray(44),
 	st_kal_update_eec = `gray(43), st_kal_update_load_eec = `gray(42),
 	st_kal_update_es = `gray(41), st_kal_update_load_es = `gray(40),
 	st_kal_update_k = `gray(39),
@@ -75,6 +76,7 @@ wire [`FIXWID-1:0] kal_pnc = conf[`FIXWID+4-1:4];
 wire disable_kal = kal_pnc == {`FIXWID{1'b0}};
 wire [`FIXWID-1:0] kal_mnc = 16'd1024;
 wire [`FIXWID-1:0] vol = conf[`FIXWID+`FIXWID+4-1:`FIXWID+4];
+wire disable_vol = vol == 16'd1024;
 
 wire u_fixu_ack;
 wire u_fixu_overflow;
@@ -384,7 +386,7 @@ always@(negedge rstn or posedge clk) begin
 				end
 			// kal
 			st_kal_idle: begin
-				if(disable_kal) cst <= st_done;
+				if(disable_kal) cst <= st_vol_idle;
 				else cst <= st_kal_update_k_1;
 			end
 			st_kal_update_k_1: begin
@@ -435,11 +437,16 @@ always@(negedge rstn or posedge clk) begin
 				if(u_fixu_ack_x) begin
 					if(u_fixu_overflow) cst <= st_error;
 					else begin
-						cst <= st_load_vol;
+						cst <= st_vol_idle;
 						kal_eec <= u_fixu_z;
 						data <= kal_es;
 					end
 				end
+			// vol
+			st_vol_idle: begin
+				if(disable_vol) cst <= st_done;
+				else cst <= st_load_vol;
+			end
 			st_load_vol: begin
 				cst <= st_vol;
 				u_fixu_fn <= 1'b0;
@@ -448,7 +455,7 @@ always@(negedge rstn or posedge clk) begin
 				u_fixu_b <= vol;
 				u_fixu_c <= 0;
 			end
-			st_vol: begin
+			st_vol:
 				if(u_fixu_ack_x) begin
 					if(u_fixu_overflow) cst <= st_error;
 					else begin
@@ -456,7 +463,6 @@ always@(negedge rstn or posedge clk) begin
 						data <= u_fixu_z;
 					end
 				end
-			end
 			// error
 			st_error: begin
 				cst <= st_done;
