@@ -8,7 +8,7 @@ module fix_audio_ns(
 	output reg overflow, 
 	output reg [`FIXWID-1:0] tx_data, 
 	input [`FIXWID-1:0] rx_data, 
-	input [`FIXWID+4-1:0] conf, 
+	input [`FIXWID+`FIXWID+4-1:0] conf, 
 	input req, 
 	input enable, 
 	input rstn, clk 
@@ -19,8 +19,9 @@ module fix_audio_ns(
 `endif
 reg [5:0] cst;
 localparam
-	st_error = `gray(45),
-	st_done = `gray(44),
+	st_error = `gray(47),
+	st_done = `gray(46),
+	st_vol = `gray(45), st_load_vol = `gray(44),
 	st_kal_update_eec = `gray(43), st_kal_update_load_eec = `gray(42),
 	st_kal_update_es = `gray(41), st_kal_update_load_es = `gray(40),
 	st_kal_update_k = `gray(39),
@@ -73,6 +74,7 @@ fix_lpf_table u_fix_lpf_table(
 wire [`FIXWID-1:0] kal_pnc = conf[`FIXWID+4-1:4];
 wire disable_kal = kal_pnc == {`FIXWID{1'b0}};
 wire [`FIXWID-1:0] kal_mnc = 16'd1024;
+wire [`FIXWID-1:0] vol = conf[`FIXWID+`FIXWID+4-1:`FIXWID+4];
 
 wire u_fixu_ack;
 wire u_fixu_overflow;
@@ -433,11 +435,29 @@ always@(negedge rstn or posedge clk) begin
 				if(u_fixu_ack_x) begin
 					if(u_fixu_overflow) cst <= st_error;
 					else begin
-						cst <= st_done;
+						cst <= st_load_vol;
 						kal_eec <= u_fixu_z;
 						data <= kal_es;
 					end
 				end
+			st_load_vol: begin
+				cst <= st_vol;
+				u_fixu_fn <= 1'b0;
+				u_fixu_req <= ~u_fixu_req;
+				u_fixu_a <= data;
+				u_fixu_b <= vol;
+				u_fixu_c <= 0;
+			end
+			st_vol: begin
+				if(u_fixu_ack_x) begin
+					if(u_fixu_overflow) cst <= st_error;
+					else begin
+						cst <= st_done;
+						data <= u_fixu_z;
+					end
+				end
+			end
+			// error
 			st_error: begin
 				cst <= st_done;
 				overflow <= 1'b1;
@@ -448,24 +468,7 @@ always@(negedge rstn or posedge clk) begin
 				tx_data <= data;
 				ack <= ~ack;
 			end
-			default: begin
-				cst <= st_idle;
-				data <= data;
-				u_fixu_fn <= u_fixu_fn;
-				u_fixu_req <= u_fixu_req;
-				u_fixu_a <= u_fixu_a;
-				u_fixu_b <= u_fixu_b;
-				u_fixu_c <= u_fixu_c;
-				hpf_x0 <= hpf_x0; hpf_x1 <= hpf_x1;
-				hpf_y0 <= hpf_y0; hpf_y1 <= hpf_y1;
-				lpf_x0 <= lpf_x0; lpf_x1 <= lpf_x1; lpf_x2 <= lpf_x2; 
-				lpf_x3 <= lpf_x3; lpf_x4 <= lpf_x4; lpf_x5 <= lpf_x5;
-				lpf_y0 <= lpf_y0; lpf_y1 <= lpf_y1; lpf_y2 <= lpf_y2; 
-				lpf_y3 <= lpf_y3; lpf_y4 <= lpf_y4; lpf_y5 <= lpf_y5;
-				kal_k <= kal_k; kal_es <= kal_es; kal_eec <= kal_eec;
-				overflow <= overflow;
-				ack <= ack;
-			end
+			default: cst <= st_idle;
 		endcase
 	end
 end
