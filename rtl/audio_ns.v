@@ -8,7 +8,7 @@ module fix_audio_ns(
 	output reg overflow, 
 	output reg [`FIXWID-1:0] tx_data, 
 	input [`FIXWID-1:0] rx_data, 
-	input [`FIXWID+`FIXWID+4-1:0] conf, 
+	input [`FIXWID+`FIXWID+`FIXWID+4-1:0] conf, 
 	input req, 
 	input enable, 
 	input rstn, clk 
@@ -19,34 +19,36 @@ module fix_audio_ns(
 `endif
 reg [5:0] cst;
 localparam
-	st_error = `gray(48),
-	st_done = `gray(47),
-	st_vol = `gray(46), st_load_vol = `gray(45),
-	st_vol_idle = `gray(44),
-	st_kal_update_eec = `gray(43), st_kal_update_load_eec = `gray(42),
-	st_kal_update_es = `gray(41), st_kal_update_load_es = `gray(40),
-	st_kal_update_k = `gray(39),
-	st_kal_update_k_load = `gray(38), st_kal_update_k_1 = `gray(37),
-	st_kal_idle = `gray(36),
-	st_lpf_y0 = `gray(35), st_lpf_a1 = `gray(34), 
-	st_lpf_a6 = `gray(33), st_lpf_load_a6 = `gray(32), 
-	st_lpf_a5 = `gray(31), st_lpf_load_a5 = `gray(30), 
-	st_lpf_a4 = `gray(29), st_lpf_load_a4 = `gray(28), 
-	st_lpf_a3 = `gray(27), st_lpf_load_a3 = `gray(26), 
-	st_lpf_a2 = `gray(25), st_lpf_load_a2 = `gray(24), 
-	st_lpf_b6 = `gray(23), st_lpf_load_b6 = `gray(22), 
-	st_lpf_b5 = `gray(21), st_lpf_load_b5 = `gray(20), 
-	st_lpf_b4 = `gray(19), st_lpf_load_b4 = `gray(18), 
-	st_lpf_b3 = `gray(17), st_lpf_load_b3 = `gray(16), 
-	st_lpf_b2 = `gray(15), st_lpf_load_b2 = `gray(14), 
-	st_lpf_b1 = `gray(13), st_lpf_load_b1 = `gray(12), 
-	st_lpf_shift = `gray(11),
-	st_hpf_y0 = `gray(10),
-	st_hpf_a1 = `gray(09), st_hpf_load_a1 = `gray(08), 
-	st_hpf_a2 = `gray(07), st_hpf_load_a2 = `gray(06), 
-	st_hpf_b2 = `gray(05), st_hpf_load_b2 = `gray(04), 
-	st_hpf_b1 = `gray(03), st_hpf_load_b1 = `gray(02), 
-	st_hpf_shift = `gray(01),
+	st_error = `gray(53),
+	st_done = `gray(52),
+	st_vol = `gray(51), st_load_vol = `gray(50),
+	st_vol_idle = `gray(49),
+	st_kal_update_eec = `gray(48), st_kal_update_load_eec = `gray(47),
+	st_kal_update_es = `gray(46), st_kal_update_load_es = `gray(45),
+	st_kal_update_k = `gray(44),
+	st_kal_update_k_load = `gray(43), st_kal_update_k_1 = `gray(42),
+	st_kal_idle = `gray(40),
+	st_lpf_y0 = `gray(38), st_lpf_a1 = `gray(37), 
+	st_lpf_a6 = `gray(36), st_lpf_load_a6 = `gray(35), 
+	st_lpf_a5 = `gray(34), st_lpf_load_a5 = `gray(33), 
+	st_lpf_a4 = `gray(32), st_lpf_load_a4 = `gray(31), 
+	st_lpf_a3 = `gray(30), st_lpf_load_a3 = `gray(29), 
+	st_lpf_a2 = `gray(28), st_lpf_load_a2 = `gray(27), 
+	st_lpf_b6 = `gray(26), st_lpf_load_b6 = `gray(25), 
+	st_lpf_b5 = `gray(24), st_lpf_load_b5 = `gray(23), 
+	st_lpf_b4 = `gray(22), st_lpf_load_b4 = `gray(21), 
+	st_lpf_b3 = `gray(20), st_lpf_load_b3 = `gray(19), 
+	st_lpf_b2 = `gray(18), st_lpf_load_b2 = `gray(17), 
+	st_lpf_b1 = `gray(16), st_lpf_load_b1 = `gray(15), 
+	st_lpf_shift = `gray(14),
+	st_hpf_y0 = `gray(13),
+	st_hpf_a1 = `gray(12), st_hpf_load_a1 = `gray(11), 
+	st_hpf_a2 = `gray(10), st_hpf_load_a2 = `gray(09), 
+	st_hpf_b2 = `gray(08), st_hpf_load_b2 = `gray(07), 
+	st_hpf_b1 = `gray(06), st_hpf_load_b1 = `gray(05), 
+	st_hpf_shift = `gray(04),
+	st_in_vol = `gray(03), st_load_in_vol = `gray(02),
+	st_in_vol_idle = `gray(01),
 	st_idle = `gray(00);
 
 wire [1:0] sel_hpf = conf[1:0];
@@ -77,6 +79,8 @@ wire disable_kal = kal_pnc == {`FIXWID{1'b0}};
 wire [`FIXWID-1:0] kal_mnc = 16'd1024;
 wire [`FIXWID-1:0] vol = conf[`FIXWID+`FIXWID+4-1:`FIXWID+4];
 wire disable_vol = vol == 16'd1024;
+wire [`FIXWID-1:0] in_vol = conf[`FIXWID+`FIXWID+`FIXWID+4-1:`FIXWID+`FIXWID+4];
+wire disable_in_vol = in_vol == 16'd1024;
 
 wire u_fixu_ack;
 wire u_fixu_overflow;
@@ -143,9 +147,30 @@ always@(negedge rstn or posedge clk) begin
 		case(cst)
 			st_idle: 
 				if(req_x) begin
-					cst <= st_hpf_shift;
+					cst <= st_in_vol_idle;
 					data <= rx_data;
 					overflow <= 1'b0;
+				end
+			// input vol
+			st_in_vol_idle: begin
+				if(disable_in_vol) cst <= st_hpf_shift;
+				else cst <= st_load_in_vol;
+			end
+			st_load_in_vol: begin
+				cst <= st_in_vol;
+				u_fixu_fn <= 1'b0;
+				u_fixu_req <= ~u_fixu_req;
+				u_fixu_a <= data;
+				u_fixu_b <= in_vol;
+				u_fixu_c <= 0;
+			end
+			st_in_vol:
+				if(u_fixu_ack_x) begin
+					if(u_fixu_overflow) cst <= st_error;
+					else begin
+						cst <= st_hpf_shift;
+						data <= u_fixu_z;
+					end
 				end
 			// hpf
 			st_hpf_shift: begin
